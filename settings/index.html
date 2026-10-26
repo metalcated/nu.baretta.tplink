@@ -2,30 +2,91 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script
       type="text/javascript"
       src="/homey.js"
       data-origin="settings"
     ></script>
     <style>
-      #credential-validation { padding: 12px; border-radius: 8px; }
-      #credential-validation[data-state="validated"] { color: #14532d; background: #dcfce7; }
-      #credential-validation[data-state="unverified"] { color: #713f12; background: #fef9c3; }
-      #credential-validation[data-state="rejected"] { color: #7f1d1d; background: #fee2e2; }
-      #discovery-targets { min-height: 108px; resize: vertical; }
-      #credential-clear-dialog { max-width: 420px; width: calc(100% - 48px); padding: 24px; border: 0; border-radius: 12px; }
-      #credential-clear-dialog::backdrop { background: rgba(0, 0, 0, .4); }
-      #credential-clear-dialog h2 { margin-top: 0; }
-      #credential-clear-dialog button + button { margin-top: 8px; }
+      .kasa-settings {
+        --kasa-text: #202124;
+        --kasa-muted: #626773;
+        --kasa-line: #e5e7eb;
+        --kasa-surface: #ffffff;
+        --kasa-subtle: #f6f7f9;
+        --kasa-action: #0078d4;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 20px;
+        background: var(--kasa-surface);
+        color: var(--kasa-text);
+        font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .kasa-settings *, .kasa-settings *::before, .kasa-settings *::after { box-sizing: border-box; }
+      .kasa-settings .homey-header { margin: 0 0 20px; padding: 0 0 16px; border-bottom: 1px solid var(--kasa-line); }
+      .kasa-settings .homey-title { margin: 0; font-size: 24px; font-weight: 650; line-height: 1.2; }
+      .kasa-settings .homey-subtitle { margin: 8px 0 0; color: var(--kasa-muted); font-size: 14px; line-height: 1.5; }
+      .kasa-settings .settings-section { width: 100%; min-width: 0; margin: 0 0 24px; padding: 0; border: 0; }
+      .kasa-settings .homey-form-legend { width: 100%; margin: 0 0 10px; padding: 0; font-size: 17px; font-weight: 650; line-height: 1.35; }
+      .kasa-settings p { margin: 0 0 12px; overflow-wrap: anywhere; }
+      .kasa-settings .homey-form-group { margin: 0 0 12px; }
+      .kasa-settings .homey-form-label { display: block; margin-bottom: 6px; color: var(--kasa-text); font-size: 13px; font-weight: 550; }
+      .kasa-settings .homey-form-input {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        margin: 0;
+        padding: 10px 12px;
+        border: 1px solid #cdd1d8;
+        border-radius: 8px;
+        background: var(--kasa-surface);
+        color: var(--kasa-text);
+        font: inherit;
+        line-height: 1.5;
+      }
+      .kasa-settings .homey-text-small { color: var(--kasa-muted); font-size: 12px; line-height: 1.45; }
+      .kasa-settings button { min-height: 42px; margin: 0; padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-weight: 550; line-height: 1.35; cursor: pointer; }
+      .kasa-settings button:disabled { opacity: .6; cursor: wait; }
+      .kasa-settings .homey-button-primary-full { width: 100%; background: var(--kasa-action); color: #ffffff; }
+      .kasa-settings .homey-button-secondary-full { width: 100%; border-color: var(--kasa-line); background: var(--kasa-subtle); color: var(--kasa-text); }
+      .kasa-settings .homey-button-danger-full { width: 100%; border-color: #efc7c7; background: #fff6f6; color: #b42318; }
+      .kasa-settings :focus-visible { outline: 2px solid var(--kasa-action); outline-offset: 3px; }
+      .settings-actions { display: flex; gap: 8px; align-items: stretch; }
+      .settings-actions > button { flex: 1 1 0; min-width: 0; }
+      .settings-feedback { margin-top: 10px !important; color: var(--kasa-muted); font-size: 12px; }
+      .settings-disclosure { margin-top: 16px; border-top: 1px solid var(--kasa-line); }
+      .settings-disclosure > summary { padding: 12px 0; font-weight: 600; cursor: pointer; }
+      .settings-disclosure[open] > summary { margin-bottom: 4px; }
+      #account-test { margin-top: 16px; }
+      #credential-validation { padding: 10px 12px; border-radius: 8px; font-size: 13px; color: var(--kasa-text); background: var(--kasa-subtle); border-left: 3px solid var(--kasa-line); }
+      #credential-validation[data-state="validated"] { border-left-color: #168a50; }
+      #credential-validation[data-state="unverified"] { border-left-color: #b77709; }
+      #credential-validation[data-state="rejected"] { border-left-color: #b42318; }
+      #discovery-targets { min-height: 104px; resize: vertical; }
+      .settings-dialog { max-width: 420px; width: calc(100% - 32px); margin: auto; padding: 20px; border: 1px solid var(--kasa-line); border-radius: 12px; background: var(--kasa-surface); color: var(--kasa-text); box-shadow: 0 12px 40px rgba(0, 0, 0, .16); }
+      .settings-dialog::backdrop { background: rgba(0, 0, 0, .3); }
+      .settings-dialog h2 { margin: 0 0 12px; font-size: 19px; line-height: 1.3; }
+      .settings-dialog p { margin-bottom: 20px; }
+      [hidden] { display: none !important; }
+      @media (max-width: 380px) {
+        .kasa-settings { padding: 16px; }
+        .kasa-settings .homey-title { font-size: 22px; }
+        .settings-actions { flex-direction: column; }
+      }
     </style>
   </head>
-  <body>
+  <body class="kasa-settings">
     <header class="homey-header">
-      <h1 class="homey-title" data-i18n="settings.credentials.title"></h1>
-      <p class="homey-subtitle" data-i18n="settings.credentials.subtitle"></p>
+      <h1 class="homey-title">Kasa LAN settings</h1>
+      <p class="homey-subtitle">Discover devices on your network and manage their local connection.</p>
     </header>
 
-    <fieldset class="homey-form-fieldset">
+    <fieldset class="homey-form-fieldset settings-section">
       <legend class="homey-form-legend">Discovery networks</legend>
       <p>Homey can scan these local networks when automatic discovery cannot reach your Kasa devices.</p>
       <div class="homey-form-group">
@@ -34,55 +95,74 @@
           placeholder="192.168.181.0/24" aria-describedby="discovery-hint discovery-status"></textarea>
       </div>
       <p class="homey-text-small" id="discovery-hint">For example, 192.168.181.0/24. Separate multiple networks or device addresses with a comma or a new line. These settings are saved in Homey.</p>
-      <button class="homey-button-primary-full" id="discovery-save" type="button">Save discovery networks</button>
-      <button class="homey-button-secondary-full" id="discovery-clear" type="button">Clear discovery networks</button>
-      <p id="discovery-status" role="status" aria-live="polite"></p>
+      <div class="settings-actions">
+        <button class="homey-button-primary-full" id="discovery-save" type="button">Save discovery networks</button>
+        <button class="homey-button-secondary-full" id="discovery-clear" type="button">Clear discovery networks</button>
+      </div>
+      <p class="settings-feedback" id="discovery-status" role="status" aria-live="polite"></p>
     </fieldset>
 
-    <fieldset class="homey-form-fieldset">
+    <fieldset class="homey-form-fieldset settings-section">
       <legend class="homey-form-legend" data-i18n="settings.credentials.legend"></legend>
       <p id="credential-status" aria-live="polite"></p>
       <p id="credential-validation" aria-live="polite"></p>
 
-      <div class="homey-form-group">
-        <label class="homey-form-label" for="username" data-i18n="settings.credentials.username"></label>
-        <input class="homey-form-input" id="username" type="text" autocomplete="username" />
+      <div id="account-test">
+        <div class="homey-form-group">
+          <label class="homey-form-label" for="test-ip" data-i18n="settings.credentials.testIp"></label>
+          <input class="homey-form-input" id="test-ip" type="text" inputmode="decimal" />
+        </div>
+        <p class="homey-text-small" data-i18n="settings.credentials.testHint"></p>
+        <button class="homey-button-secondary-full" id="test" type="button" data-i18n="settings.credentials.test"></button>
       </div>
-      <div class="homey-form-group">
-        <label class="homey-form-label" for="password" data-i18n="settings.credentials.password"></label>
-        <input class="homey-form-input" id="password" type="password" autocomplete="current-password" />
-      </div>
-      <p class="homey-text-small" data-i18n="settings.credentials.replaceHint"></p>
-
-      <button class="homey-button-primary-full" id="save" type="button" data-i18n="settings.credentials.save"></button>
-      <button class="homey-button-danger-full" id="clear" type="button" data-i18n="settings.credentials.clear"></button>
-      <div class="homey-form-group">
-        <label class="homey-form-label" for="test-ip" data-i18n="settings.credentials.testIp"></label>
-        <input class="homey-form-input" id="test-ip" type="text" inputmode="decimal" />
-      </div>
-      <p class="homey-text-small" data-i18n="settings.credentials.testHint"></p>
-      <button class="homey-button-secondary-full" id="test" type="button" data-i18n="settings.credentials.test"></button>
+      <details class="settings-disclosure" id="account-editor" open>
+        <summary>Edit TP-Link account</summary>
+        <div class="homey-form-group">
+          <label class="homey-form-label" for="username" data-i18n="settings.credentials.username"></label>
+          <input class="homey-form-input" id="username" type="text" autocomplete="username" />
+        </div>
+        <div class="homey-form-group">
+          <label class="homey-form-label" for="password" data-i18n="settings.credentials.password"></label>
+          <input class="homey-form-input" id="password" type="password" autocomplete="current-password" />
+        </div>
+        <p class="homey-text-small" data-i18n="settings.credentials.replaceHint"></p>
+        <div class="settings-actions">
+          <button class="homey-button-primary-full" id="save" type="button" data-i18n="settings.credentials.save"></button>
+          <button class="homey-button-danger-full" id="clear" type="button" data-i18n="settings.credentials.clear"></button>
+        </div>
+      </details>
     </fieldset>
 
-    <fieldset class="homey-form-fieldset">
-      <legend class="homey-form-legend" data-i18n="settings.credentials.legacyLegend"></legend>
-      <p data-i18n="settings.credentials.legacyHint"></p>
-      <button class="homey-button-secondary-full" id="adopt" type="button" data-i18n="settings.credentials.adopt"></button>
-    </fieldset>
+    <details class="settings-disclosure" id="advanced-settings">
+      <summary>Advanced</summary>
+      <fieldset class="homey-form-fieldset settings-section">
+        <legend class="homey-form-legend" data-i18n="settings.credentials.legacyLegend"></legend>
+        <p data-i18n="settings.credentials.legacyHint"></p>
+        <button class="homey-button-secondary-full" id="adopt" type="button" data-i18n="settings.credentials.adopt"></button>
+      </fieldset>
 
-    <fieldset class="homey-form-fieldset">
-      <legend class="homey-form-legend" data-i18n="settings.diagnostics.title"></legend>
-      <p data-i18n="settings.diagnostics.hint"></p>
-      <button class="homey-button-secondary-full" id="diagnostics" type="button" data-i18n="settings.diagnostics.collect"></button>
-      <p id="diagnostics-status" aria-live="polite"></p>
-      <textarea class="homey-form-input" id="diagnostics-report" rows="12" readonly hidden aria-label="HS220 diagnostics"></textarea>
-    </fieldset>
+      <fieldset class="homey-form-fieldset settings-section">
+        <legend class="homey-form-legend" data-i18n="settings.diagnostics.title"></legend>
+        <p data-i18n="settings.diagnostics.hint"></p>
+        <button class="homey-button-secondary-full" id="diagnostics" type="button" data-i18n="settings.diagnostics.collect"></button>
+        <p class="settings-feedback" id="diagnostics-status" aria-live="polite"></p>
+        <textarea class="homey-form-input" id="diagnostics-report" rows="12" readonly hidden aria-label="HS220 diagnostics"></textarea>
+      </fieldset>
+    </details>
 
-    <dialog id="credential-clear-dialog" aria-labelledby="credential-clear-title" aria-describedby="credential-clear-message">
+    <dialog class="settings-dialog" id="credential-clear-dialog" aria-labelledby="credential-clear-title" aria-describedby="credential-clear-message">
       <h2 id="credential-clear-title">Clear TP-Link account?</h2>
       <p id="credential-clear-message" data-i18n="settings.credentials.clearConfirm"></p>
-      <button class="homey-button-secondary-full" id="credential-clear-cancel" type="button">Cancel</button>
-      <button class="homey-button-danger-full" id="credential-clear-confirm" type="button">Clear account</button>
+      <div class="settings-actions">
+        <button class="homey-button-secondary-full" id="credential-clear-cancel" type="button">Cancel</button>
+        <button class="homey-button-danger-full" id="credential-clear-confirm" type="button">Clear account</button>
+      </div>
+    </dialog>
+
+    <dialog class="settings-dialog" id="settings-error-dialog" aria-labelledby="settings-error-title" aria-describedby="settings-error-message">
+      <h2 id="settings-error-title">Unable to complete this action</h2>
+      <p id="settings-error-message"></p>
+      <button class="homey-button-primary-full" id="settings-error-close" type="button">Close</button>
     </dialog>
 
     <script type="text/javascript">
@@ -143,10 +223,23 @@
         var clearDialog = document.getElementById('credential-clear-dialog');
         var clearCancel = document.getElementById('credential-clear-cancel');
         var clearConfirm = document.getElementById('credential-clear-confirm');
+        var accountEditor = document.getElementById('account-editor');
+        var errorDialog = document.getElementById('settings-error-dialog');
+        var errorMessage = document.getElementById('settings-error-message');
+        var errorClose = document.getElementById('settings-error-close');
+        var hasRenderedCredentialStatus = false;
         var savedDiscoveryTargets = null;
         var discoveryRevision = 0;
         var discoveryBusy = false;
         var pendingClearConfirmation = null;
+
+        function showError(error) {
+          errorMessage.textContent = getErrorMessage(Homey, error);
+          if (!errorDialog.open) errorDialog.showModal();
+          errorClose.focus();
+        }
+
+        errorClose.addEventListener('click', function() { errorDialog.close(); });
 
         function setDiscoveryLoading(loading) {
           discoveryBusy = loading;
@@ -175,7 +268,7 @@
             }
           } catch (error) {
             discoveryStatus.textContent = 'Unable to load discovery networks. Your edits have not been saved.';
-            Homey.alert(getErrorMessage(Homey, error), 'error');
+            showError(error);
           } finally {
             setDiscoveryLoading(false);
           }
@@ -197,7 +290,7 @@
             }
           } catch (error) {
             discoveryStatus.textContent = 'Discovery networks were not saved. Check the addresses and try again.';
-            Homey.alert(getErrorMessage(Homey, error), 'error');
+            showError(error);
           } finally {
             setDiscoveryLoading(false);
           }
@@ -261,6 +354,10 @@
         }
 
         function renderStatus(status, extraMessage) {
+          if (!hasRenderedCredentialStatus || !status || !status.configured) {
+            accountEditor.open = !status || !status.configured;
+          }
+          hasRenderedCredentialStatus = true;
           var validation = status && status.validation || {};
           var state = status && status.configured && validation.status === 'validated'
             ? 'validated' : validation.status === 'rejected' ? 'rejected' : 'unverified';
@@ -300,7 +397,7 @@
 
         testElement.addEventListener('click', async function() {
           if (usernameElement.value || passwordElement.value) {
-            Homey.alert(Homey.__('settings.credentials.saveBeforeTest'), 'error');
+            showError(Homey.__('settings.credentials.saveBeforeTest'));
             return;
           }
           setLoading(true);
@@ -310,7 +407,7 @@
             });
             renderStatus(result.status);
           } catch (error) {
-            Homey.alert(getErrorMessage(Homey, error), 'error');
+            showError(error);
           } finally {
             setLoading(false);
           }
@@ -321,7 +418,7 @@
           var password = passwordElement.value;
           var inputError = credentialInputError(username, password);
           if (inputError) {
-            Homey.alert(inputError, 'error');
+            showError(inputError);
             return;
           }
 
@@ -333,10 +430,11 @@
             });
             passwordElement.value = '';
             usernameElement.value = '';
+            accountEditor.open = false;
             var validation = result.validation || {};
             renderStatus(result.status, validation.reason || Homey.__('settings.credentials.saved'));
           } catch (error) {
-            Homey.alert(getErrorMessage(Homey, error), 'error');
+            showError(error);
           } finally {
             setLoading(false);
           }
@@ -351,7 +449,7 @@
             usernameElement.value = '';
             renderStatus(result.status, Homey.__('settings.credentials.cleared'));
           } catch (error) {
-            Homey.alert(getErrorMessage(Homey, error), 'error');
+            showError(error);
           } finally {
             setLoading(false);
           }
@@ -365,7 +463,7 @@
               count: (result.adopted || []).length,
             }));
           } catch (error) {
-            Homey.alert(getErrorMessage(Homey, error), 'error');
+            showError(error);
           } finally {
             setLoading(false);
           }

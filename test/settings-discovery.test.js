@@ -12,7 +12,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 
 function settingsFixture(options = {}) {
   const elements = new Map();
-  const state = { calls: [], alerts: [], savedTargets: options.targets || '', ...options };
+  const state = { calls: [], savedTargets: options.targets || '', ...options };
   const element = id => {
     if (!elements.has(id)) elements.set(id, {
       value: '', textContent: '', hidden: false, disabled: false, attributes: {}, handlers: {},
@@ -35,11 +35,14 @@ function settingsFixture(options = {}) {
   const Homey = {
     ready() { state.calls.push('ready'); },
     __(key) { return key; },
-    alert(message, type) { state.alerts.push({ message, type }); },
+    alert() { assert.fail('Homey.alert opens a browser prompt in the web client'); },
+    confirm() { assert.fail('Browser confirmation prompts are forbidden'); },
+    prompt() { assert.fail('Browser input prompts are forbidden'); },
     api(method, url, body, callback) {
       state.calls.push({ method, url, body: method === 'GET' ? undefined : body });
       const done = method === 'GET' ? body : callback;
-      if (url === '/credentials/status') return done(state.credentialError || null, { configured: true, validation: { status: 'validated' } });
+      if (state.apiErrors && state.apiErrors[url]) return done(state.apiErrors[url]);
+      if (url === '/credentials/status') return done(state.credentialError || null, { configured: state.configured !== false, validation: { status: 'validated' } });
       if (url === '/discovery/settings') {
         if (method === 'GET') {
           if (state.deferLoad) { state.finishLoad = () => done(state.loadError || null, { targets: state.savedTargets }); return; }
@@ -68,7 +71,7 @@ test('discovery networks load independently after Homey.ready even if credential
   assert.match(element('discovery-status').textContent, /Saved discovery networks/);
   assert.equal(element('credential-status').textContent, 'Credentials status unavailable');
   assert.equal(element('discovery-save').disabled, false);
-  assert.equal(state.alerts.length, 0);
+  assert.notEqual(element('settings-error-dialog').open, true);
 });
 
 test('editing discovery networks marks them unsaved and only the explicit save action persists them', async () => {
@@ -117,7 +120,7 @@ test('discovery clearing is explicit and saves an empty target list without chan
 });
 
 for (const action of ['discovery-save', 'discovery-clear']) {
-  test(`${action} failure keeps current edits and reports the error through Homey's modal`, async () => {
+  test(`${action} failure keeps current edits and reports the error in the page's dialog`, async () => {
     const { state, element } = settingsFixture({ targets: '192.168.181.0/24' });
     await flush();
     element('discovery-targets').value = '192.168.0.0/8';
@@ -127,7 +130,10 @@ for (const action of ['discovery-save', 'discovery-clear']) {
     assert.equal(element('discovery-targets').value, '192.168.0.0/8');
     assert.equal(state.savedTargets, '192.168.181.0/24');
     assert.match(element('discovery-status').textContent, /not saved/);
-    assert.deepEqual(state.alerts, [{ message: 'Choose a smaller private network.', type: 'error' }]);
+    assert.equal(element('settings-error-dialog').open, true);
+    assert.equal(element('settings-error-message').textContent, 'Choose a smaller private network.');
+    element('settings-error-close').handlers.click();
+    assert.equal(element('settings-error-dialog').open, false);
     assert.equal(element('discovery-save').disabled, false);
     assert.equal(element('discovery-clear').disabled, false);
   });
@@ -136,7 +142,9 @@ for (const action of ['discovery-save', 'discovery-clear']) {
 test('discovery load failure does not block credential controls or a later explicit save', async () => {
   const { state, element } = settingsFixture({ loadError: new Error('Discovery settings unavailable') });
   await flush();
-  assert.deepEqual(state.alerts, [{ message: 'Discovery settings unavailable', type: 'error' }]);
+  assert.equal(element('settings-error-dialog').open, true);
+  assert.equal(element('settings-error-message').textContent, 'Discovery settings unavailable');
+  element('settings-error-close').handlers.click();
   assert.match(element('discovery-status').textContent, /Unable to load/);
   assert.equal(element('save').disabled, false);
   assert.equal(element('test').disabled, false);
@@ -189,6 +197,52 @@ test('credential-clear cancellation and Escape use an in-page dialog without cha
     assert.equal(element('password').value, 'unsaved-password');
   }
   assert.equal(state.calls.filter(call => call.url === '/credentials/clear').length, 0);
-  assert.doesNotMatch(script, /window\.(?:confirm|prompt|alert)\s*\(/);
+  assert.doesNotMatch(script, /(?:window|Homey)\.(?:confirm|prompt|alert)\s*\(/);
   assert.doesNotMatch(script, /localStorage/);
+});
+
+test('the account editor opens when no account is configured and preserves deliberate edits during status tests', async () => {
+  const empty = settingsFixture({ configured: false });
+  await flush();
+  assert.equal(empty.element('account-editor').open, true);
+  const configured = settingsFixture();
+  await flush();
+  assert.equal(configured.element('account-editor').open, false);
+  configured.element('account-editor').open = true;
+  await configured.element('test').handlers.click();
+  assert.equal(configured.element('account-editor').open, true);
+});
+
+for (const [button, url] of [['save', '/credentials/save'], ['clear', '/credentials/clear'],
+  ['adopt', '/credentials/adopt'], ['test', '/credentials/test']]) {
+  test(`${button} credential errors use the in-page error dialog and leave controls usable`, async () => {
+    const { state, element } = settingsFixture({ apiErrors: { [url]: new Error('Local connection rejected') } });
+    await flush();
+    if (button === 'save') {
+      element('username').value = 'account@example.test';
+      element('password').value = 'unsaved-password';
+    }
+    const pending = element(button).handlers.click();
+    if (button === 'clear') element('credential-clear-confirm').handlers.click();
+    await pending;
+    assert.equal(state.calls.at(-1).url, url);
+    assert.equal(element('settings-error-dialog').open, true);
+    assert.equal(element('settings-error-message').textContent, 'Local connection rejected');
+    for (const id of ['save', 'clear', 'adopt', 'test']) assert.equal(element(id).disabled, false);
+    element('settings-error-close').handlers.click();
+    assert.equal(element('settings-error-dialog').open, false);
+  });
+}
+
+test('invalid account input stays in the editor and uses an in-page error without an API write', async () => {
+  const { state, element } = settingsFixture({ configured: false });
+  await flush();
+  element('username').value = 'account@example.test';
+  const callsBefore = state.calls.length;
+  await element('save').handlers.click();
+  assert.equal(state.calls.length, callsBefore);
+  assert.equal(element('account-editor').open, true);
+  assert.equal(element('username').value, 'account@example.test');
+  assert.equal(element('settings-error-dialog').open, true);
+  assert.match(element('settings-error-message').textContent, /Enter both/);
 });

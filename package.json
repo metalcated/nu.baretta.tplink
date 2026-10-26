@@ -1,7 +1,7 @@
 {
   "name": "nu.baretta.tplink",
   "author": "Bretislav Kubesa",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "main": "app.js",
   "repository": "https://github.com/metalcated/nu.baretta.tplink",
   "license": "ISC",

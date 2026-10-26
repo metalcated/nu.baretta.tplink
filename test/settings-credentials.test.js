@@ -12,7 +12,6 @@ test('settings calls ready first, shows green only for a successful local test, 
   const translations = require('../locales/en.json').settings;
   const elements = new Map();
   const calls = [];
-  const alerts = [];
   let current = { configured: true, validation: { status: 'unverified' } };
   let diagnosticFailure = false;
   const element = id => {
@@ -50,13 +49,16 @@ test('settings calls ready first, shows green only for a successful local test, 
       if (method === 'GET') body(null, current);
       else callback(null, { status: current, validation: current.validation });
     },
-    alert(message) { alerts.push(message); },
+    alert() { assert.fail('Homey.alert opens a browser prompt in the web client'); },
+    confirm() { assert.fail('Browser confirmation prompts are forbidden'); },
+    prompt() { assert.fail('Browser input prompts are forbidden'); },
   };
   context.window.onHomeyReady(Homey);
   await new Promise(resolve => setImmediate(resolve));
   const status = element('credential-validation');
   assert.equal(status.attributes['data-state'], 'unverified');
   assert.equal(status.textContent.includes('\u2713'), false);
+  assert.equal(element('account-editor').open, false);
   element('test-ip').value = '192.168.10.103';
   current = { configured: true, validation: { status: 'validated', checkedAt: '2026-09-13T16:00:00.000Z' } };
   await element('test').handlers.click();
@@ -70,7 +72,10 @@ test('settings calls ready first, shows green only for a successful local test, 
   const previousCalls = calls.length;
   await element('test').handlers.click();
   assert.equal(calls.length, previousCalls);
-  assert.equal(alerts.length, 1);
+  assert.equal(element('settings-error-dialog').open, true);
+  assert.equal(element('settings-error-message').textContent, translations.credentials.saveBeforeTest);
+  element('settings-error-close').handlers.click();
+  assert.equal(element('settings-error-dialog').open, false);
   element('password').value = '';
 
   current = { configured: true, validation: { status: 'rejected', error: 'KLAP challenge mismatch' } };
@@ -85,6 +90,7 @@ test('settings calls ready first, shows green only for a successful local test, 
   await element('save').handlers.click();
   assert.equal(status.attributes['data-state'], 'unverified');
   assert.equal(element('password').value, '');
+  assert.equal(element('account-editor').open, false);
 
   current = { configured: false, validation: { status: 'unverified' } };
   context.window.confirm = () => assert.fail('Browser confirmation prompts are forbidden');
@@ -100,6 +106,7 @@ test('settings calls ready first, shows green only for a successful local test, 
   assert.equal(element('credential-clear-dialog').open, false);
   assert.equal(calls.at(-1).url, '/credentials/clear');
   assert.equal(status.hidden, true);
+  assert.equal(element('account-editor').open, true);
 
   await element('diagnostics').handlers.click();
   assert.equal(element('diagnostics').disabled, false);

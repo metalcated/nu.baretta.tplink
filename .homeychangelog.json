@@ -226,5 +226,8 @@
   },
   "0.4.1": {
     "en": "Added saved private discovery networks for routed IoT VLANs, bounded directed UDP subnet discovery without TCP sweeps, and an in-page confirmation when clearing credentials."
+  },
+  "0.4.2": {
+    "en": "Refreshed Kasa LAN settings layout with full-width responsive controls, clearer account and advanced sections, and in-page error dialogs instead of browser prompts."
   }
 }

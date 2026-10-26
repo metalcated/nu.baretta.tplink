@@ -1,6 +1,6 @@
 # TP-Link KASA LAN for Homey
 
-## This fork: 0.4.1
+## This fork: 0.4.2
 
 This fork is maintained at https://github.com/metalcated/nu.baretta.tplink and starts from the community app's `sdk3` branch, version 0.3.11. It retains the `nu.baretta.tplink` app identity and all existing model drivers so updating the community app preserves its paired devices and app data. The original authors and license are retained.
 
@@ -24,7 +24,7 @@ The fork also corrects manual-IP discovery arguments in KP400, KP303, KP200, HS3
 Build and tests run entirely in Docker; do not install dependencies on the host:
 
 ```bash
-docker build --tag metalcated/homey-kasa-lan-installer:0.4.1 /Users/mgomon/Code/homey/nu.baretta.tplink
+docker build --tag metalcated/homey-kasa-lan-installer:0.4.2 /Users/mgomon/Code/homey/nu.baretta.tplink
 ```
 
 After approving an update to the running Homey, use the established installer route:
@@ -36,6 +36,8 @@ bash /Users/mgomon/Code/homey/nu.baretta.tplink/scripts/install.sh --via-foreman
 `HOMEY_AUTH_VOLUME` defaults to `homey-lennox-cli-auth`; set it explicitly to use another existing CLI account volume. `HOMEY_ID`, `HOMEY_INSTALLER_IMAGE`, `HOMEY_SSH_JUMP`, `HOMEY_SSH_TARGET` and `HOMEY_TUNNEL_PORT` are optional environment overrides. The installer verifies the selected Homey's identity before using its login and uploads with `clean:false`. It checks the exact installed app ID, version and running state; an old running app cannot conceal a failed upload.
 
 Installation updates the community app only. Devices and Flows belonging to the official `com.tplink.kasa` app do not automatically transfer: add the LAN counterparts, compare their controls and state, then deliberately update dependent Flows and dashboards. Keep the official devices until that migration has been verified. Do not delete devices to troubleshoot discovery.
+
+The Settings page uses a responsive layout with full-width discovery fields, a visible account-status/test section, optional account editing and collapsed advanced tools. Errors and account-clear confirmation stay inside the page; they do not invoke browser alerts or prompts.
 
 ### Validation and physical acceptance
 
