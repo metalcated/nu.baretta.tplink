@@ -31,7 +31,7 @@ const {
 } = require('./lib/tplink-credentials');
 
 const AUTHENTICATED_DRIVER_IDS = new Set(['ks225', 's500d', 'ks240']);
-const DUAL_TRANSPORT_DRIVER_IDS = new Set(['ep10', 'hs200', 'hs210', 'hs220']);
+const DUAL_TRANSPORT_DRIVER_IDS = new Set(['ep10', 'hs200', 'hs210', 'hs220', 'ks200', 'kl135']);
 const MANAGED_DRIVER_IDS = new Set([...AUTHENTICATED_DRIVER_IDS, ...DUAL_TRANSPORT_DRIVER_IDS]);
 const CREDENTIAL_VALIDATION_TIMEOUT = 4000;
 
@@ -66,6 +66,35 @@ class TpLinkApp extends Homey.App {
     this._credentialMutation = Promise.resolve();
     this._globalCredentialRefreshVersion = 0;
     this._credentialValidation = { status: 'unverified' };
+    if (!this._lanActionsRegistered) {
+      const actions = {
+        ledOn: device => typeof device.setLedState === 'function'
+          ? device.setLedState(device.getSettings().settingIPAddress, device.getData().childId, true)
+          : device.ledOn(device.getSettings().settingIPAddress, device.getData().childId),
+        ledOff: device => typeof device.setLedState === 'function'
+          ? device.setLedState(device.getSettings().settingIPAddress, device.getData().childId, false)
+          : device.ledOff(device.getSettings().settingIPAddress, device.getData().childId),
+        meter_reset: device => device.meter_reset(device.getSettings().settingIPAddress),
+        undo_meter_reset: device => device.undo_meter_reset(device.getSettings().settingIPAddress),
+        circadianModeOn: device => device.circadianModeOn(device.getSettings().settingIPAddress),
+        circadianModeOff: device => device.circadianModeOff(device.getSettings().settingIPAddress),
+        transitionOn: (device, args) => device.onTransition(device.getSettings().settingIPAddress, args.transition * 1000),
+        transitionOff: (device, args) => device.offTransition(device.getSettings().settingIPAddress, args.transition * 1000),
+        set_brightness: (device, args) => {
+          if (!Number.isFinite(args.brightness) || args.brightness < 0 || args.brightness > 100) {
+            throw new Error('Enter a brightness from 0 to 100.');
+          }
+          if (typeof device.setLevel === 'function') return device.setLevel(args.brightness / 100);
+          if (typeof device.setBrightness === 'function') return device.setBrightness(device.getSettings().settingIPAddress, args.brightness);
+          return device.onCapabilityDim(args.brightness / 100);
+        },
+      };
+      for (const [id, run] of Object.entries(actions)) {
+        this.homey.flow.getActionCard(`lan_${id}`).registerRunListener(async args =>
+          (await run(args.device, args)) !== false);
+      }
+      this._lanActionsRegistered = true;
+    }
     if (!this._ledActionsRegistered) {
       for (const [cardId, value] of [['ledOn', true], ['ledOff', false]]) {
         this.homey.flow.getActionCard(cardId).registerRunListener(async ({ device }) => {
@@ -402,22 +431,26 @@ class TpLinkApp extends Homey.App {
     const drivers = this.homey.drivers.getDrivers();
     const entries = [];
     Object.entries(drivers).forEach(([fallbackId, driver]) => {
-      const driverId = getDriverId(driver, fallbackId);
-      if (!MANAGED_DRIVER_IDS.has(driverId) || !driver) return;
+      const sourceDriverId = getDriverId(driver, fallbackId);
+      if ((!MANAGED_DRIVER_IDS.has(sourceDriverId) && sourceDriverId !== 'kasa') || !driver) return;
 
       let devices = [];
       try {
         devices = driver.getDevices();
       } catch (error) {
-        this.error(`Unable to list ${driverId} devices: ${getSafeErrorMessage(error)}`);
+        this.error(`Unable to list ${sourceDriverId} devices: ${getSafeErrorMessage(error)}`);
       }
 
       devices.forEach((device, index) => {
         const data = device.getData ? getDeviceConnectionData(device) : {};
+        const driverId = sourceDriverId === 'kasa' ? data.modelDriver : sourceDriverId;
+        if (!MANAGED_DRIVER_IDS.has(driverId)) return;
         entries.push({
           driverId,
           device,
-          key: `${driverId}:${data.id || index}`,
+          key: sourceDriverId === 'kasa'
+            ? `${sourceDriverId}:${driverId}:${data.id || index}:${data.childId || ''}`
+            : `${driverId}:${data.id || index}`,
         });
       });
     });

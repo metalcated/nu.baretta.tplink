@@ -77,7 +77,7 @@ class TPlinkPlugDriver extends Homey.Driver {
                     discoveryInterval: 1500,
                     discoveryTimeout: 3000,
                     breakoutChildren: true,
-                    devices: [data[0].ip]  // Setting the 'devices' property
+                    devices: [{ host: data[0].ip }]  // Setting the 'devices' property
                 };
             } else {
                 // If data[0].ip is not defined

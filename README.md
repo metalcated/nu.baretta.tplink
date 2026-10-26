@@ -1,5 +1,48 @@
 # TP-Link KASA LAN for Homey
 
+## This fork: 0.4.0
+
+This fork is maintained at https://github.com/metalcated/nu.baretta.tplink and starts from the community app's `sdk3` branch, version 0.3.11. It retains the `nu.baretta.tplink` app identity and all existing model drivers so updating the community app preserves its paired devices and app data. The original authors and license are retained.
+
+Choose **Add device → TP-Link KASA LAN → Scan all Kasa devices**. One scan lists supported bulbs, switches, dimmers and plugs together. Each power-strip outlet and supported fan/light channel is a separate choice. Use **Select all available** or select individual devices, then **Add selected**. Already-paired LAN devices are excluded from creation. If an add fails partway through, successful devices stay added and only the remaining selection is retried.
+
+The scanner reports missing accounts, rejected authentication and unsupported models instead of treating them as absent. Newer encrypted devices use the account saved in this app's Settings or the complete account supplied during pairing. A TCP-only selection does not save unused credentials. Unknown firmware is not assumed compatible just because its product name is similar.
+
+If broadcasts cannot cross your network, expand **Find devices by IP address** and enter individual IPv4 addresses separated by commas or spaces. The scanner sends correctly formed directed discovery probes and also tries direct local reads. Scans have bounded concurrency and a 25-second overall limit. Routed networks still require Homey to have access to the device ports; this app does not change routers, VLANs or firewall rules.
+
+Added models:
+
+- **KL135:** on/off, brightness, hue, saturation, colour temperature, colour/temperature modes and actual power measurement. Known IOT firmware is supported; SMART bulb firmware remains explicitly unsupported by the bundled API.
+- **KS200:** on/off and status LED, including validated TCP and authenticated local connections. This is a separate model from KS200M and does not claim motion or ambient-light sensors.
+
+The fork also corrects manual-IP discovery arguments in KP400, KP303, KP200, HS300 and EP40. Bulk pairing keeps the validated physical identity, outlet/channel identity and working local transport. It verifies selected devices again before saving an account or returning creation data.
+
+### Build and install
+
+Build and tests run entirely in Docker; do not install dependencies on the host:
+
+```bash
+docker build --tag metalcated/homey-kasa-lan-installer:0.4.0 /Users/mgomon/Code/homey/nu.baretta.tplink
+```
+
+After approving an update to the running Homey, use the established installer route:
+
+```bash
+bash /Users/mgomon/Code/homey/nu.baretta.tplink/scripts/install.sh --via-foreman
+```
+
+`HOMEY_AUTH_VOLUME` defaults to `homey-lennox-cli-auth`; set it explicitly to use another existing CLI account volume. `HOMEY_ID`, `HOMEY_INSTALLER_IMAGE`, `HOMEY_SSH_JUMP`, `HOMEY_SSH_TARGET` and `HOMEY_TUNNEL_PORT` are optional environment overrides. The installer verifies the selected Homey's identity before using its login and uploads with `clean:false`. It checks the exact installed app ID, version and running state; an old running app cannot conceal a failed upload.
+
+Installation updates the community app only. Devices and Flows belonging to the official `com.tplink.kasa` app do not automatically transfer: add the LAN counterparts, compare their controls and state, then deliberately update dependent Flows and dashboards. Keep the official devices until that migration has been verified. Do not delete devices to troubleshoot discovery.
+
+### Validation and physical acceptance
+
+Automated tests cover mixed-model scans, separate outlets, model/physical-ID checks, encrypted transport preservation, rejected accounts, duplicate suppression, rescan/cancel/disconnect races, bounded verification, partial-add retries, offline recovery, settings edits and existing Flow behavior. Loopback UDP/TCP/XOR emulators exercise the bundled API's actual network protocol for KP400 discovery plus KL135 and KS200 controls. These emulators do not establish physical-device or Homey mobile-client acceptance.
+
+Before calling the installation complete, test one real device of each installed model: scan and manual IP, initial state, each supported control, external state updates, app restart/reconnect, account rejection/recovery, individual outlet identity, and affected Flows. Record the hardware and firmware versions. Read-only discovery and status reads come first; perform physical switching or lighting tests only with approval. Restore the prior community release before pairing new generic devices if an immediate code rollback is needed; an older release does not understand the new generic driver. No automatic migration or deletion is performed.
+
+## Upstream application
+
 TP-Link KASA LAN connects supported TP-Link Kasa plugs, outlets, power strips, wall switches, dimmers, bulbs, and light strips to Homey Pro. Communication and everyday control take place over the local network, so supported devices can be used from the Homey app and in Flows without relying on cloud control for each command.
 
 The app supports automatic LAN discovery, manual-IP pairing, recovery after an IP-address change, device controls, status polling, lighting controls, energy measurements on compatible models, and model-specific Flow actions.

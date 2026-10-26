@@ -220,5 +220,8 @@
   },
   "0.3.11": {
     "en": "Additional logging for HS200"
+  },
+  "0.4.0": {
+    "en": "Added one combined LAN scan with multi-select pairing, KL135 bulb and KS200 switch support, explicit discovery/authentication feedback, safer bulk validation and corrected multi-outlet manual IP discovery."
   }
 }
