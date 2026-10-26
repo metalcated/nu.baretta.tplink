@@ -94,8 +94,8 @@
       "EP25"
     ]
   },
-  "version": "0.4.3",
-  "compatibility": ">=5.0.0",
+  "version": "0.4.4",
+  "compatibility": ">=12.5.0",
   "author": {
     "name": "Bretislav Kubesa",
     "website": "https://github.com/shaarkys"
@@ -201,7 +201,7 @@
         "en": "Scan all Kasa devices",
         "nl": "Alle Kasa-apparaten zoeken"
       },
-      "class": "socket",
+      "class": "bridge",
       "capabilities": [
         "onoff"
       ],

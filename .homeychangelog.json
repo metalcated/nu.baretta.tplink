@@ -232,5 +232,8 @@
   },
   "0.4.3": {
     "en": "Fixed clipped device names and model details in the combined scanner by isolating its rows and controls from Homey's legacy pairing styles."
+  },
+  "0.4.4": {
+    "en": "Placed the combined Kasa scanner in its own native Bridge group, before Light and Wall Plug in the English picker. Paired devices retain their model classes. Requires Homey 12.5.0 or newer for the Bridge class."
   }
 }

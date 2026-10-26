@@ -1,6 +1,6 @@
 # TP-Link KASA LAN for Homey
 
-## This fork: 0.4.3
+## This fork: 0.4.4
 
 This fork is maintained at https://github.com/metalcated/nu.baretta.tplink and starts from the community app's `sdk3` branch, version 0.3.11. It retains the `nu.baretta.tplink` app identity and all existing model drivers so updating the community app preserves its paired devices and app data. The original authors and license are retained.
 
@@ -24,7 +24,7 @@ The fork also corrects manual-IP discovery arguments in KP400, KP303, KP200, HS3
 Build and tests run entirely in Docker; do not install dependencies on the host:
 
 ```bash
-docker build --tag metalcated/homey-kasa-lan-installer:0.4.3 /Users/mgomon/Code/homey/nu.baretta.tplink
+docker build --tag metalcated/homey-kasa-lan-installer:0.4.4 /Users/mgomon/Code/homey/nu.baretta.tplink
 ```
 
 After approving an update to the running Homey, use the established installer route:
@@ -41,6 +41,8 @@ The Settings page uses a responsive layout with full-width discovery fields, a v
 
 The combined scanner uses its own row class and opts out of Homey's legacy control styling. Device names and model/IP details wrap to their full height in the actual pairing modal, including narrow screens.
 
+The **Scan all Kasa devices** entry represents the Kasa ecosystem connection and appears alone in Homey's native **Bridge** group. In the English client, this group sorts before Light and Wall Plug. Individual devices keep their actual model classes when added. The Bridge class requires Homey software **12.5.0 or newer**, which is this fork's minimum supported version from 0.4.4 onward.
+
 ### Validation and physical acceptance
 
 Automated tests cover mixed-model scans, separate outlets, model/physical-ID checks, encrypted transport preservation, rejected accounts, duplicate suppression, rescan/cancel/disconnect races, bounded verification, partial-add retries, offline recovery, settings edits and existing Flow behavior. Loopback UDP/TCP/XOR emulators exercise the bundled API's actual network protocol for KP400 discovery plus KL135 and KS200 controls. These emulators do not establish physical-device or Homey mobile-client acceptance.
@@ -55,7 +57,7 @@ The app supports automatic LAN discovery, manual-IP pairing, recovery after an I
 
 ## Requirements
 
-- Homey Pro running Homey software 5.0.0 or newer.
+- Homey Pro or Homey Self-Hosted Server running Homey software 12.5.0 or newer.
 - A supported TP-Link device reachable from Homey on the local network.
 - TP-Link account credentials for authenticated SMART models such as KS225, S500D, and KS240. Configure a default account once in the app Settings page; it authenticates encrypted local connections and is never written to application logs. A device can retain a separate Advanced Settings override for a different account.
 - Third-Party Compatibility enabled in the Kasa app when required by a legacy Kasa device or firmware version.
