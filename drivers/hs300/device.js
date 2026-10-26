@@ -296,35 +296,41 @@ async reinitializeConnection(ipAddress) {
     }
 
     async meter_reset(device) {
-        try {
-            this.log('Reset meter');
-            const sysInfo = await client.getSysInfo(device);
-            this.plug = client.getPlug({ host: device, sysInfo: sysInfo, childId: childId });
-            // reset meter for counters in Kasa app. Does not actually clear the total counter though...
-            // this.plug.emeter.eraseStats(null);
-                        this.log('Setting totalOffset to oldtotalState: ' + this.getCapabilityValue('meter_power'));
-            this.totalOffset = this.getCapabilityValue('meter_power') || 0;
-            await this.setSettings({
-                totalOffset: this.totalOffset
-            });
-        } catch (err) {
-            this.log("Caught error in meter_reset: " + err.message);
-            // Handle the error accordingly
+        const childId = this.getData().childId;
+        if (typeof childId !== 'string' || !childId) {
+            throw new Error('The HS300 meter reset requires a paired outlet.');
         }
+        const sysInfo = await client.getSysInfo(device);
+        const plug = client.getPlug({ host: device, sysInfo, childId });
+        // The API normalizes total to kWh and scopes this read to the outlet.
+        const realtime = await plug.emeter.getRealtime();
+        const total = realtime && realtime.total;
+        if (typeof total !== 'number' || !Number.isFinite(total) || total < 0) {
+            throw new Error('The HS300 outlet did not return a valid energy total.');
+        }
+        // Offset only the Homey counter; never erase the physical device's stats.
+        await this.setSettings({ totalOffset: total });
+        this.totalOffset = total;
+        await this.setCapabilityValue('meter_power', 0);
+        return true;
     }
 
     async undo_meter_reset(device) {
-        try {
-            this.log('Undo reset meter, setting totalOffset to 0');
-            // reset meter for counters in Kasa app. Does not actually clear the total counter though...
-            this.totalOffset = 0;
-            await this.setSettings({
-                totalOffset: this.totalOffset
-            });
-        } catch (err) {
-            this.log("Caught error in undo_meter_reset: " + err.message);
-            // Handle the error accordingly
+        const childId = this.getData().childId;
+        if (typeof childId !== 'string' || !childId) {
+            throw new Error('The HS300 meter reset requires a paired outlet.');
         }
+        const sysInfo = await client.getSysInfo(device);
+        const plug = client.getPlug({ host: device, sysInfo, childId });
+        const realtime = await plug.emeter.getRealtime();
+        const total = realtime && realtime.total;
+        if (typeof total !== 'number' || !Number.isFinite(total) || total < 0) {
+            throw new Error('The HS300 outlet did not return a valid energy total.');
+        }
+        await this.setSettings({ totalOffset: 0 });
+        this.totalOffset = 0;
+        await this.setCapabilityValue('meter_power', total);
+        return true;
     }
 
     async getStatus() {
@@ -350,7 +356,7 @@ async reinitializeConnection(ipAddress) {
             this.log('Relay state for child socket ' + childId + ' is ' + (relayState ? 'on' : 'off'));
 
             // Get real-time electricity metrics
-            const realtimeStats = await this.plug.emeter.getRealtime(this.plug, childId);
+            const realtimeStats = await this.plug.emeter.getRealtime();
             if (!recovery.responded(poll)) return;
 
             if (realtimeStats) {
@@ -362,7 +368,7 @@ async reinitializeConnection(ipAddress) {
                 this.setCapabilityValue('measure_power', power).catch(this.error);
                 this.setCapabilityValue('measure_voltage', voltage).catch(this.error);
                 this.setCapabilityValue('measure_current', current).catch(this.error);
-                this.setCapabilityValue('meter_power', total).catch(this.error);
+                this.setCapabilityValue('meter_power', Math.max(0, total - (this.totalOffset || 0))).catch(this.error);
 
                 this.log(`Updated stats for child socket ${childId}: Power - ${power}W, Voltage - ${voltage}V, Current - ${current}A, Total - ${total}kWh`);
             }

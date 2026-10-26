@@ -1,6 +1,14 @@
 'use strict';
 
 module.exports = {
+  async getDiscoverySettings({ homey }) {
+    return homey.app.getDiscoverySettings();
+  },
+
+  async saveDiscoverySettings({ homey, body }) {
+    return homey.app.saveDiscoverySettings(body || {});
+  },
+
   async collectHs220Diagnostics({ homey }) {
     return homey.app.collectHs220Diagnostics();
   },

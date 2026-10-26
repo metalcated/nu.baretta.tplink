@@ -94,6 +94,9 @@ function fixture(id = 'hs110', { Client: ClientOverride, random = Math.random } 
         if (name === 'homey') return { Device: class {} };
         if (name === 'tplink-smarthome-api') return { Client: ClientOverride || Client };
         if (localRequire.resolve(name) === recoveryFile) return load(recoveryFile);
+        if (localRequire.resolve(name) === path.resolve(__dirname, '../../lib/kasa-model-device.js')) {
+          return load(localRequire.resolve(name));
+        }
         return localRequire(name);
       },
       Date: class extends Date { static now() { return state.now; } },

@@ -1,9 +1,9 @@
 {
   "name": "nu.baretta.tplink",
   "author": "Bretislav Kubesa",
-  "version": "0.2.0",
+  "version": "0.4.4",
   "main": "app.js",
-  "repository": "https://github.com/shaarkys/nu.baretta.tplink",
+  "repository": "https://github.com/metalcated/nu.baretta.tplink",
   "license": "ISC",
   "dependencies": {
     "tplink-smarthome-api": "file:vendor/tplink-smarthome-api-5.0.4.tgz"
@@ -12,5 +12,9 @@
     "@types/homey": "npm:homey-apps-sdk-v3-types@^0.3.12",
     "eslint": "^10.8.0",
     "globals": "^17.9.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "check": "node scripts/check-syntax.cjs"
   }
 }

@@ -1,0 +1,132 @@
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: light; --lan-blue: #0078ff; --lan-line: #b8bec6; --lan-muted: #647080; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  [hidden] { display: none !important; }
+  main { max-width: 680px; margin: auto; padding: 12px 16px 100px; text-align: left; }
+  h1 { font-size: 24px; line-height: 1.2; margin: 0 0 12px; }
+  p { line-height: 1.5; margin: 8px 0 16px; }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; }
+  input[type=email], input[type=password], textarea { width: 100%; padding: 11px; border: 1px solid var(--lan-line); border-radius: 6px; font: inherit; background: transparent; color: inherit; }
+  input:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--lan-blue); outline-offset: 3px; }
+  details { margin: 16px 0; border-bottom: 1px solid var(--lan-line); padding-bottom: 16px; }
+  summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+  .hint { font-size: 14px; color: var(--lan-muted); }
+  button { font: inherit; padding: 11px 16px; border-radius: 6px; border: 1px solid var(--lan-line); background: transparent; color: inherit; cursor: pointer; }
+  button.primary { background: var(--lan-blue); border-color: var(--lan-blue); color: white; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  #scan { width: 100%; }
+  #status { min-height: 24px; margin-top: 16px; }
+  #toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 16px 0 8px; }
+  #toolbar label { display: flex; align-items: center; gap: 10px; margin: 0; }
+  input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--lan-blue); flex: 0 0 auto; }
+  #results { padding: 0; margin: 0; list-style: none; }
+  /* Homey's legacy pairing stylesheet reserves .device for fixed-height rows. */
+  .kasa-device { border-top: 1px solid var(--lan-line); }
+  .kasa-device label { display: flex; gap: 12px; padding: 14px 0; margin: 0; align-items: center; cursor: pointer; }
+  .kasa-device label > span { flex: 1; min-width: 0; }
+  .kasa-device strong { display: block; overflow-wrap: anywhere; }
+  .kasa-device small { display: block; margin-top: 5px; font-weight: 400; line-height: 1.4; overflow-wrap: anywhere; }
+  .kasa-device:has(input:disabled) { opacity: .7; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px; background: Canvas; border-top: 1px solid var(--lan-line); display: flex; justify-content: flex-end; gap: 12px; }
+  dialog { max-width: min(460px, 90vw); padding: 24px; border: 1px solid var(--lan-line); border-radius: 10px; background: Canvas; color: CanvasText; }
+  dialog::backdrop { background: #0007; }
+</style>
+<main>
+  <h1>Find your Kasa devices</h1>
+  <p>Scan once for bulbs, switches and plugs. Each outlet appears separately so you can choose exactly what to add.</p>
+  <details>
+    <summary>TP-Link account <span id="account-status"></span></summary>
+    <p class="hint">Newer devices need the owner account for encrypted local access. Leave both fields blank to use the account saved in this app.</p>
+    <label class="hy-nostyle" for="username">TP-Link email</label>
+    <input class="hy-nostyle" id="username" type="email" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <label class="hy-nostyle" for="password">TP-Link password</label>
+    <input class="hy-nostyle" id="password" type="password" autocomplete="current-password">
+  </details>
+  <details>
+    <summary>Device IPs and discovery networks</summary>
+    <p class="hint">Use saved discovery networks from this app’s Settings, or enter individual IPs and private networks here. Network scans send discovery probes and verify devices that reply.</p>
+    <label class="hy-nostyle" for="addresses">Device IP addresses or networks</label>
+    <textarea id="addresses" rows="2" placeholder="192.168.181.0/24, 192.168.1.20" spellcheck="false"></textarea>
+  </details>
+  <button id="scan" class="primary hy-nostyle" type="button">Scan network</button>
+  <p id="status" role="status" aria-live="polite">Homey must be able to reach the devices on your network.</p>
+  <div id="toolbar" hidden><label class="hy-nostyle"><input class="hy-nostyle" id="select-all" type="checkbox"> Select all available</label><span id="count"></span></div>
+  <ul id="results" aria-label="Discovered Kasa devices"></ul>
+</main>
+<footer><button class="hy-nostyle" id="done" type="button">Done</button><button id="add" class="primary hy-nostyle" type="button" disabled>Add selected</button></footer>
+<dialog id="issue"><h2>Device pairing</h2><p id="issue-text"></p><button id="close-issue" class="primary hy-nostyle" type="button">Close</button></dialog>
+<script>
+  (() => {
+    const el = id => document.getElementById(id);
+    let rows = [], selected = new Set(), busy = false, creating = false, added = 0;
+    const issue = message => { el('issue-text').textContent = message; el('issue').showModal(); };
+    el('close-issue').onclick = () => el('issue').close();
+    function update() {
+      const eligible = rows.filter(row => row.status === 'ready');
+      el('select-all').checked = eligible.length > 0 && eligible.every(row => selected.has(row.key));
+      el('select-all').indeterminate = selected.size > 0 && !el('select-all').checked;
+      el('select-all').disabled = busy || !eligible.length;
+      el('count').textContent = `${selected.size} selected`;
+      el('add').disabled = busy || !selected.size;
+      el('add').textContent = selected.size ? `Add selected (${selected.size})` : 'Add selected';
+      el('scan').disabled = busy;
+      el('done').disabled = creating;
+      el('username').disabled = el('password').disabled = el('addresses').disabled = busy;
+    }
+    function render() {
+      el('results').replaceChildren();
+      el('toolbar').hidden = rows.length === 0;
+      for (const row of rows) {
+        const li = document.createElement('li'); li.className = 'kasa-device';
+        const label = document.createElement('label'); label.className = 'hy-nostyle';
+        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.className = 'hy-nostyle';
+        checkbox.checked = selected.has(row.key); checkbox.disabled = busy || row.status !== 'ready';
+        checkbox.onchange = () => { checkbox.checked ? selected.add(row.key) : selected.delete(row.key); update(); };
+        const content = document.createElement('span'), name = document.createElement('strong'), detail = document.createElement('small');
+        name.textContent = row.name || row.model;
+        detail.textContent = [row.model, row.host, row.status === 'paired' ? 'Already added to LAN' : row.reason].filter(Boolean).join(' • ');
+        content.append(name, detail); label.append(checkbox, content); li.append(label); el('results').append(li);
+      }
+      update();
+    }
+    el('select-all').onchange = () => { selected = new Set(el('select-all').checked ? rows.filter(row => row.status === 'ready').map(row => row.key) : []); render(); };
+    for (const id of ['username','password','addresses']) el(id).oninput = () => {
+      rows = []; selected.clear(); render(); el('status').textContent = 'Settings changed. Scan again to verify the devices.';
+    };
+    el('scan').onclick = async () => {
+      busy = true; rows = []; selected.clear(); render(); el('status').textContent = 'Scanning and verifying devices… This can take a few seconds.';
+      try {
+        rows = await Homey.emit('scan', { username: el('username').value, password: el('password').value, addresses: el('addresses').value });
+        const ready = rows.filter(row => row.status === 'ready').length;
+        el('status').textContent = rows.length ? `${ready} available to add. Review the list and select your devices.` : 'No devices replied. Try their IP addresses above. Check network access and Third-Party Compatibility in the Kasa app.';
+      } catch (error) { issue(error.message || String(error)); el('status').textContent = 'The scan could not finish. Check the details and try again.'; }
+      finally { busy = false; render(); }
+    };
+    el('add').onclick = async () => {
+      busy = true; creating = true; render(); el('status').textContent = 'Verifying selected devices before adding…';
+      const failures = [];
+      try {
+        const prepared = await Homey.emit('prepare_devices', [...selected]);
+        for (const entry of prepared) {
+          el('status').textContent = `Adding ${entry.device.name}…`;
+          try { await Homey.createDevice(entry.device); added++; selected.delete(entry.key); const row = rows.find(item => item.key === entry.key); if (row) row.status = 'paired'; }
+          catch { failures.push(entry.device.name); }
+        }
+        // Devices paired elsewhere since the scan are omitted by the server.
+        const preparedKeys = new Set(prepared.map(entry => entry.key));
+        for (const key of [...selected]) if (!preparedKeys.has(key)) { selected.delete(key); const row = rows.find(item => item.key === key); if (row) row.status = 'paired'; }
+        el('status').textContent = `${added} added.${failures.length ? ' Some devices could not be added. Retry the remaining selection.' : ' Scan again to find more devices, or tap Done.'}`;
+        if (failures.length) issue(`Could not add: ${failures.join(', ')}. Your other devices were added. Retry the remaining selection.`);
+      } catch (error) { issue(error.message || String(error)); el('status').textContent = 'Nothing else was added. Check the details, then retry or scan again.'; }
+      finally { busy = false; creating = false; render(); }
+    };
+    el('done').onclick = () => Homey.done();
+    Homey.setTitle('Kasa devices');
+    Homey.emit('get_credential_status').then(status => { el('account-status').textContent = status.configured ? '(saved account available)' : '(optional)'; }).catch(() => {});
+    Homey.emit('get_discovery_settings').then(settings => {
+      if (!el('addresses').value && settings && typeof settings.targets === 'string') el('addresses').value = settings.targets;
+    }).catch(() => {});
+  })();
+</script>
