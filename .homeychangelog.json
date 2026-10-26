@@ -223,5 +223,8 @@
   },
   "0.4.0": {
     "en": "Added one combined LAN scan with multi-select pairing, KL135 bulb and KS200 switch support, explicit discovery/authentication feedback, safer bulk validation and corrected multi-outlet manual IP discovery."
+  },
+  "0.4.1": {
+    "en": "Added saved private discovery networks for routed IoT VLANs, bounded directed UDP subnet discovery without TCP sweeps, and an in-page confirmation when clearing credentials."
   }
 }

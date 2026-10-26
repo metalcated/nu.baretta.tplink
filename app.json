@@ -94,7 +94,7 @@
       "EP25"
     ]
   },
-  "version": "0.4.0",
+  "version": "0.4.1",
   "compatibility": ">=5.0.0",
   "author": {
     "name": "Bretislav Kubesa",
@@ -156,6 +156,14 @@
     "adoptLegacyCredentials": {
       "method": "POST",
       "path": "/credentials/adopt"
+    },
+    "getDiscoverySettings": {
+      "method": "GET",
+      "path": "/discovery/settings"
+    },
+    "saveDiscoverySettings": {
+      "method": "POST",
+      "path": "/discovery/settings"
     }
   },
   "capabilities": {

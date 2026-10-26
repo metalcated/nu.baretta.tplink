@@ -1,6 +1,6 @@
 # TP-Link KASA LAN for Homey
 
-## This fork: 0.4.0
+## This fork: 0.4.1
 
 This fork is maintained at https://github.com/metalcated/nu.baretta.tplink and starts from the community app's `sdk3` branch, version 0.3.11. It retains the `nu.baretta.tplink` app identity and all existing model drivers so updating the community app preserves its paired devices and app data. The original authors and license are retained.
 
@@ -8,7 +8,9 @@ Choose **Add device → TP-Link KASA LAN → Scan all Kasa devices**. One scan l
 
 The scanner reports missing accounts, rejected authentication and unsupported models instead of treating them as absent. Newer encrypted devices use the account saved in this app's Settings or the complete account supplied during pairing. A TCP-only selection does not save unused credentials. Unknown firmware is not assumed compatible just because its product name is similar.
 
-If broadcasts cannot cross your network, expand **Find devices by IP address** and enter individual IPv4 addresses separated by commas or spaces. The scanner sends correctly formed directed discovery probes and also tries direct local reads. Scans have bounded concurrency and a 25-second overall limit. Routed networks still require Homey to have access to the device ports; this app does not change routers, VLANs or firewall rules.
+If broadcasts cannot cross your network, open the app’s **Settings → Discovery networks**, enter the exact private network (for example `192.168.181.0/24`) and choose **Save discovery networks**. This setting is saved in Homey’s database and is used by subsequent combined scans. The pairing view also accepts one-off network or individual-IP overrides. A device address is never used to guess the subnet.
+
+CIDR discovery sends directed UDP probes to usable hosts, then performs local validation only for devices that reply. It does not run a TCP sweep across the subnet. Individual IPs additionally receive a direct-read fallback when UDP replies are blocked. Targets are deduplicated and bounded to 1,024 addresses in RFC1918 networks with prefixes `/22` through `/32`; up to 64 individual IPs may also be entered. Scans have bounded verification concurrency and a 25-second overall limit. Routed networks still require Homey to have access to the device ports; this app does not change routers, VLANs or firewall rules.
 
 Added models:
 
@@ -22,7 +24,7 @@ The fork also corrects manual-IP discovery arguments in KP400, KP303, KP200, HS3
 Build and tests run entirely in Docker; do not install dependencies on the host:
 
 ```bash
-docker build --tag metalcated/homey-kasa-lan-installer:0.4.0 /Users/mgomon/Code/homey/nu.baretta.tplink
+docker build --tag metalcated/homey-kasa-lan-installer:0.4.1 /Users/mgomon/Code/homey/nu.baretta.tplink
 ```
 
 After approving an update to the running Homey, use the established installer route:

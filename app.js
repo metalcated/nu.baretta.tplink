@@ -4,6 +4,7 @@ const Homey = require('homey');
 const { isIP } = require('node:net');
 const { Client } = require('tplink-smarthome-api');
 const hs220Diagnostics = require('./lib/hs220-diagnostics');
+const { parseTargets } = require('./lib/lan-targets');
 const {
   getEp10ClientOptions,
   getDeviceConnectionData,
@@ -62,6 +63,17 @@ function createCredentialValidationClient(driverId, device, credentials) {
 }
 
 class TpLinkApp extends Homey.App {
+  getDiscoverySettings() {
+    return { targets: parseTargets(this.homey.settings.get('kasaDiscoveryTargets') || '').normalized };
+  }
+
+  saveDiscoverySettings(input = {}) {
+    if (typeof input.targets !== 'string') throw new Error('Enter device IP addresses or private discovery networks.');
+    const parsed = parseTargets(input.targets);
+    this.homey.settings.set('kasaDiscoveryTargets', parsed.normalized);
+    return { targets: parsed.normalized };
+  }
+
   async onInit() {
     this._credentialMutation = Promise.resolve();
     this._globalCredentialRefreshVersion = 0;

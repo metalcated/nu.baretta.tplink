@@ -44,10 +44,10 @@
     <input id="password" type="password" autocomplete="current-password">
   </details>
   <details>
-    <summary>Find devices by IP address</summary>
-    <p class="hint">Use this when devices are on another network or a scan finds nothing. Enter their addresses, separated by commas or spaces.</p>
-    <label for="addresses">Device IP addresses</label>
-    <textarea id="addresses" rows="2" placeholder="192.168.1.20, 192.168.1.21" spellcheck="false"></textarea>
+    <summary>Device IPs and discovery networks</summary>
+    <p class="hint">Use saved discovery networks from this app’s Settings, or enter individual IPs and private networks here. Network scans send discovery probes and verify devices that reply.</p>
+    <label for="addresses">Device IP addresses or networks</label>
+    <textarea id="addresses" rows="2" placeholder="192.168.181.0/24, 192.168.1.20" spellcheck="false"></textarea>
   </details>
   <button id="scan" class="primary" type="button">Scan network</button>
   <p id="status" role="status" aria-live="polite">Homey must be able to reach the devices on your network.</p>
@@ -124,5 +124,8 @@
     el('done').onclick = () => Homey.done();
     Homey.setTitle('Add Kasa devices');
     Homey.emit('get_credential_status').then(status => { el('account-status').textContent = status.configured ? '(saved account available)' : '(optional)'; }).catch(() => {});
+    Homey.emit('get_discovery_settings').then(settings => {
+      if (!el('addresses').value && settings && typeof settings.targets === 'string') el('addresses').value = settings.targets;
+    }).catch(() => {});
   })();
 </script>

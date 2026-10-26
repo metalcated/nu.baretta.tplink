@@ -58,7 +58,7 @@ test('real UDP discovery and TCP validation find both KP400 outlets through the 
   await new Promise((resolve, reject) => { tcp.once('error', reject); tcp.listen(9999, '127.0.0.1', resolve); });
   const scanner = new LanScanner({ duration: 80 });
   t.after(() => scanner.stop());
-  const rows = await scanner.scan(['127.0.0.1']);
+  const rows = await scanner.scan([], ['127.0.0.1']);
   assert.ok(udpQueries > 0, 'the real API must send a directed UDP probe');
   assert.ok(tcpQueries > 0, 'a discovery reply must be checked using a real TCP read');
   assert.equal(rows.length, 2);

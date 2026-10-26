@@ -21,6 +21,9 @@ test('settings calls ready first, shows green only for a successful local test, 
       classList: { toggle() {} },
       setAttribute(name, value) { this.attributes[name] = value; },
       addEventListener(name, handler) { this.handlers[name] = handler; },
+      showModal() { this.open = true; },
+      close() { this.open = false; },
+      focus() {},
     });
     return elements.get(id);
   };
@@ -39,6 +42,7 @@ test('settings calls ready first, shows green only for a successful local test, 
     },
     api(method, url, body, callback) {
       calls.push({ method, url, body });
+      if (url === '/discovery/settings') return body(null, { targets: '' });
       if (url === '/diagnostics/hs220') {
         assert.equal(element('diagnostics').disabled, true);
         return callback(diagnosticFailure ? new Error('test failure') : null, { scan: 'finished', devices: [] });
@@ -83,8 +87,18 @@ test('settings calls ready first, shows green only for a successful local test, 
   assert.equal(element('password').value, '');
 
   current = { configured: false, validation: { status: 'unverified' } };
-  context.window.confirm = () => true;
-  await element('clear').handlers.click();
+  context.window.confirm = () => assert.fail('Browser confirmation prompts are forbidden');
+  let clearPending = element('clear').handlers.click();
+  assert.equal(element('credential-clear-dialog').open, true);
+  assert.notEqual(calls.at(-1).url, '/credentials/clear');
+  element('credential-clear-cancel').handlers.click();
+  await clearPending;
+  assert.notEqual(calls.at(-1).url, '/credentials/clear');
+  clearPending = element('clear').handlers.click();
+  element('credential-clear-confirm').handlers.click();
+  await clearPending;
+  assert.equal(element('credential-clear-dialog').open, false);
+  assert.equal(calls.at(-1).url, '/credentials/clear');
   assert.equal(status.hidden, true);
 
   await element('diagnostics').handlers.click();

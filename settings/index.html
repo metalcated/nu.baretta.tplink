@@ -12,6 +12,11 @@
       #credential-validation[data-state="validated"] { color: #14532d; background: #dcfce7; }
       #credential-validation[data-state="unverified"] { color: #713f12; background: #fef9c3; }
       #credential-validation[data-state="rejected"] { color: #7f1d1d; background: #fee2e2; }
+      #discovery-targets { min-height: 108px; resize: vertical; }
+      #credential-clear-dialog { max-width: 420px; width: calc(100% - 48px); padding: 24px; border: 0; border-radius: 12px; }
+      #credential-clear-dialog::backdrop { background: rgba(0, 0, 0, .4); }
+      #credential-clear-dialog h2 { margin-top: 0; }
+      #credential-clear-dialog button + button { margin-top: 8px; }
     </style>
   </head>
   <body>
@@ -19,6 +24,20 @@
       <h1 class="homey-title" data-i18n="settings.credentials.title"></h1>
       <p class="homey-subtitle" data-i18n="settings.credentials.subtitle"></p>
     </header>
+
+    <fieldset class="homey-form-fieldset">
+      <legend class="homey-form-legend">Discovery networks</legend>
+      <p>Homey can scan these local networks when automatic discovery cannot reach your Kasa devices.</p>
+      <div class="homey-form-group">
+        <label class="homey-form-label" for="discovery-targets">Device IP addresses or private network ranges</label>
+        <textarea class="homey-form-input" id="discovery-targets" rows="4" spellcheck="false"
+          placeholder="192.168.181.0/24" aria-describedby="discovery-hint discovery-status"></textarea>
+      </div>
+      <p class="homey-text-small" id="discovery-hint">For example, 192.168.181.0/24. Separate multiple networks or device addresses with a comma or a new line. These settings are saved in Homey.</p>
+      <button class="homey-button-primary-full" id="discovery-save" type="button">Save discovery networks</button>
+      <button class="homey-button-secondary-full" id="discovery-clear" type="button">Clear discovery networks</button>
+      <p id="discovery-status" role="status" aria-live="polite"></p>
+    </fieldset>
 
     <fieldset class="homey-form-fieldset">
       <legend class="homey-form-legend" data-i18n="settings.credentials.legend"></legend>
@@ -58,6 +77,13 @@
       <p id="diagnostics-status" aria-live="polite"></p>
       <textarea class="homey-form-input" id="diagnostics-report" rows="12" readonly hidden aria-label="HS220 diagnostics"></textarea>
     </fieldset>
+
+    <dialog id="credential-clear-dialog" aria-labelledby="credential-clear-title" aria-describedby="credential-clear-message">
+      <h2 id="credential-clear-title">Clear TP-Link account?</h2>
+      <p id="credential-clear-message" data-i18n="settings.credentials.clearConfirm"></p>
+      <button class="homey-button-secondary-full" id="credential-clear-cancel" type="button">Cancel</button>
+      <button class="homey-button-danger-full" id="credential-clear-confirm" type="button">Clear account</button>
+    </dialog>
 
     <script type="text/javascript">
       function credentialInputError(username, password) {
@@ -110,6 +136,105 @@
         var diagnosticsElement = document.getElementById('diagnostics');
         var diagnosticsStatus = document.getElementById('diagnostics-status');
         var diagnosticsReport = document.getElementById('diagnostics-report');
+        var discoveryTargets = document.getElementById('discovery-targets');
+        var discoverySave = document.getElementById('discovery-save');
+        var discoveryClear = document.getElementById('discovery-clear');
+        var discoveryStatus = document.getElementById('discovery-status');
+        var clearDialog = document.getElementById('credential-clear-dialog');
+        var clearCancel = document.getElementById('credential-clear-cancel');
+        var clearConfirm = document.getElementById('credential-clear-confirm');
+        var savedDiscoveryTargets = null;
+        var discoveryRevision = 0;
+        var discoveryBusy = false;
+        var pendingClearConfirmation = null;
+
+        function setDiscoveryLoading(loading) {
+          discoveryBusy = loading;
+          [discoverySave, discoveryClear].forEach(function(element) {
+            element.disabled = loading;
+            element.classList.toggle('is-loading', loading);
+          });
+        }
+
+        discoveryTargets.addEventListener('input', function() {
+          discoveryRevision += 1;
+          discoveryStatus.textContent = savedDiscoveryTargets !== null && discoveryTargets.value.trim() === savedDiscoveryTargets
+            ? 'Saved discovery networks.' : 'Unsaved changes. Save to use these discovery networks.';
+        });
+
+        async function loadDiscoverySettings() {
+          var revision = discoveryRevision;
+          setDiscoveryLoading(true);
+          discoveryStatus.textContent = 'Loading discovery networks…';
+          try {
+            var result = await callApi(Homey, 'GET', '/discovery/settings');
+            savedDiscoveryTargets = result && typeof result.targets === 'string' ? result.targets : '';
+            if (revision === discoveryRevision) {
+              discoveryTargets.value = savedDiscoveryTargets;
+              discoveryStatus.textContent = savedDiscoveryTargets ? 'Saved discovery networks.' : 'No discovery networks are saved. Automatic discovery is still available.';
+            }
+          } catch (error) {
+            discoveryStatus.textContent = 'Unable to load discovery networks. Your edits have not been saved.';
+            Homey.alert(getErrorMessage(Homey, error), 'error');
+          } finally {
+            setDiscoveryLoading(false);
+          }
+        }
+
+        async function saveDiscoverySettings(targets) {
+          if (discoveryBusy) return;
+          var revision = discoveryRevision;
+          setDiscoveryLoading(true);
+          discoveryStatus.textContent = 'Saving discovery networks…';
+          try {
+            var result = await callApi(Homey, 'POST', '/discovery/settings', { targets: targets });
+            savedDiscoveryTargets = result && typeof result.targets === 'string' ? result.targets : targets;
+            if (revision === discoveryRevision) {
+              discoveryTargets.value = savedDiscoveryTargets;
+              discoveryStatus.textContent = savedDiscoveryTargets ? 'Discovery networks saved.' : 'Discovery networks cleared. Automatic discovery is still available.';
+            } else {
+              discoveryStatus.textContent = 'Unsaved changes. Save to use these discovery networks.';
+            }
+          } catch (error) {
+            discoveryStatus.textContent = 'Discovery networks were not saved. Check the addresses and try again.';
+            Homey.alert(getErrorMessage(Homey, error), 'error');
+          } finally {
+            setDiscoveryLoading(false);
+          }
+        }
+
+        discoverySave.addEventListener('click', function() {
+          return saveDiscoverySettings(discoveryTargets.value.trim());
+        });
+        discoveryClear.addEventListener('click', function() {
+          return saveDiscoverySettings('');
+        });
+
+        function finishClearConfirmation(confirmed) {
+          if (!pendingClearConfirmation) return;
+          var resolve = pendingClearConfirmation;
+          pendingClearConfirmation = null;
+          clearDialog.close();
+          if (typeof clearElement.focus === 'function') clearElement.focus();
+          resolve(confirmed);
+        }
+
+        clearCancel.addEventListener('click', function() { finishClearConfirmation(false); });
+        clearConfirm.addEventListener('click', function() { finishClearConfirmation(true); });
+        clearDialog.addEventListener('cancel', function(event) {
+          event.preventDefault();
+          finishClearConfirmation(false);
+        });
+        clearDialog.addEventListener('close', function() { finishClearConfirmation(false); });
+
+        function confirmCredentialClear() {
+          if (pendingClearConfirmation) return Promise.resolve(false);
+          return new Promise(function(resolve) {
+            pendingClearConfirmation = resolve;
+            clearDialog.showModal();
+            clearCancel.focus();
+          });
+        }
 
         diagnosticsElement.addEventListener('click', async function() {
           diagnosticsElement.disabled = true;
@@ -218,7 +343,7 @@
         });
 
         clearElement.addEventListener('click', async function() {
-          if (!window.confirm(Homey.__('settings.credentials.clearConfirm'))) return;
+          if (!await confirmCredentialClear()) return;
           setLoading(true);
           try {
             var result = await callApi(Homey, 'POST', '/credentials/clear', {});
@@ -249,6 +374,7 @@
         refreshStatus().catch(function(error) {
           statusElement.textContent = getErrorMessage(Homey, error);
         });
+        loadDiscoverySettings();
       };
     </script>
   </body>
