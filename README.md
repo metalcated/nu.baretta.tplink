@@ -1,6 +1,6 @@
 # TP-Link KASA LAN for Homey
 
-## This fork: 0.4.2
+## This fork: 0.4.3
 
 This fork is maintained at https://github.com/metalcated/nu.baretta.tplink and starts from the community app's `sdk3` branch, version 0.3.11. It retains the `nu.baretta.tplink` app identity and all existing model drivers so updating the community app preserves its paired devices and app data. The original authors and license are retained.
 
@@ -24,7 +24,7 @@ The fork also corrects manual-IP discovery arguments in KP400, KP303, KP200, HS3
 Build and tests run entirely in Docker; do not install dependencies on the host:
 
 ```bash
-docker build --tag metalcated/homey-kasa-lan-installer:0.4.2 /Users/mgomon/Code/homey/nu.baretta.tplink
+docker build --tag metalcated/homey-kasa-lan-installer:0.4.3 /Users/mgomon/Code/homey/nu.baretta.tplink
 ```
 
 After approving an update to the running Homey, use the established installer route:
@@ -38,6 +38,8 @@ bash /Users/mgomon/Code/homey/nu.baretta.tplink/scripts/install.sh --via-foreman
 Installation updates the community app only. Devices and Flows belonging to the official `com.tplink.kasa` app do not automatically transfer: add the LAN counterparts, compare their controls and state, then deliberately update dependent Flows and dashboards. Keep the official devices until that migration has been verified. Do not delete devices to troubleshoot discovery.
 
 The Settings page uses a responsive layout with full-width discovery fields, a visible account-status/test section, optional account editing and collapsed advanced tools. Errors and account-clear confirmation stay inside the page; they do not invoke browser alerts or prompts.
+
+The combined scanner uses its own row class and opts out of Homey's legacy control styling. Device names and model/IP details wrap to their full height in the actual pairing modal, including narrow screens.
 
 ### Validation and physical acceptance
 

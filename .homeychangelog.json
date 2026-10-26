@@ -229,5 +229,8 @@
   },
   "0.4.2": {
     "en": "Refreshed Kasa LAN settings layout with full-width responsive controls, clearer account and advanced sections, and in-page error dialogs instead of browser prompts."
+  },
+  "0.4.3": {
+    "en": "Fixed clipped device names and model details in the combined scanner by isolating its rows and controls from Homey's legacy pairing styles."
   }
 }
